@@ -1,0 +1,27 @@
+steps:
+  - name: "python"
+    entrypoint: "bash"
+    args:
+      - "-lc"
+      - |
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+        python -m pytest -q
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "us-central1-docker.pkg.dev/microservices-miniproject/cart/my-flask-app:latest"
+      - "."
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "us-central1-docker.pkg.dev/microservices-miniproject/cart/my-flask-app:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - "us-central1-docker.pkg.dev/microservices-miniproject/cart/my-flask-app:latest"
