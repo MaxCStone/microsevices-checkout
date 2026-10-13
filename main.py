@@ -12,6 +12,7 @@ shipping_service_url = os.environ.get(
     "https://shipping-service-539115724269.us-central1.run.app",
 ).rstrip("/")
 
+# test push
 
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
