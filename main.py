@@ -7,25 +7,26 @@ cart_service_url = os.environ.get(
     "CART_SERVICE_URL",
     "https://cart-service-539115724269.us-central1.run.app",
 ).rstrip("/")
+shipping_service_url = os.environ.get(
+    "SHIPPING_SERVICE_URL",
+    "https://shipping-service-539115724269.us-central1.run.app",
+).rstrip("/")
 
-    
 
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
-    if not cart_service_url:
-        return jsonify({"error": "CART_SERVICE_URL is not configured"}), 500
-
-    url = f"{cart_service_url}/cart/{user_id}"
+    if not cart_service_url or not shipping_service_url:
+        return jsonify({
+            "error": "CART_SERVICE_URL and SHIPPING_SERVICE_URL must be configured",
+        }), 500
 
     try:
-        response = requests.request(
-            method=request.method,
-            url=url,
-            json=request.get_json(silent=True) if request.method == "POST" else None,
+        cart_response = requests.get(
+            f"{cart_service_url}/cart/{user_id}",
             timeout=5,
         )
-        response.raise_for_status()
-        cart_response = response.json()
+        cart_response.raise_for_status()
+        cart_response = cart_response.json()
         if not isinstance(cart_response, dict):
             return jsonify({"error": "Cart service returned an invalid cart"}), 502
 
@@ -34,15 +35,49 @@ def checkout(user_id):
             return jsonify({"error": "Cart service returned an invalid cart"}), 502
 
         try:
-            total = round(sum(float(item["price_usd"]) for item in cart), 2)
+            cart_total = round(sum(float(item["price_usd"]) for item in cart), 2)
         except (KeyError, TypeError, ValueError):
             return jsonify({
                 "error": "Cart service returned an invalid price_usd field",
             }), 502
 
+        if request.method == "POST":
+            body = request.get_json(silent=True)
+            shipping_address = body.get("shipping_address") if isinstance(body, dict) else None
+            if not isinstance(shipping_address, dict):
+                return jsonify({
+                    "error": "shipping_address must be an object",
+                }), 400
+
+            shipping_response = requests.post(
+                f"{shipping_service_url}/shipping/{user_id}",
+                json=shipping_address,
+                timeout=5,
+            )
+            shipping_response.raise_for_status()
+
+        shipping_response = requests.get(
+            f"{shipping_service_url}/shipping/{user_id}",
+            timeout=5,
+        )
+        shipping_response.raise_for_status()
+        shipping_data = shipping_response.json()
+        if not isinstance(shipping_data, dict):
+            return jsonify({
+                "error": "Shipping service returned an invalid response",
+            }), 502
+
+        try:
+            shipping_total = round(float(shipping_data["shipping_estimate"]), 2)
+        except (KeyError, TypeError, ValueError):
+            return jsonify({
+                "error": "Shipping service returned an invalid shipping_estimate",
+            }), 502
+
         return jsonify({
             **cart_response,
-            "total": total,
+            "shipping_estimate": shipping_total,
+            "total": round(cart_total + shipping_total, 2),
         })
     except requests.RequestException as error:
         return jsonify({
