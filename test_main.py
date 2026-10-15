@@ -7,6 +7,7 @@ import main
 
 CART_URL = "https://cart-service-539115724269.us-central1.run.app"
 SHIPPING_URL = "https://shipping-service-539115724269.us-central1.run.app"
+PAYMENT_URL = "https://payment-service-539115724269.us-central1.run.app"
 
 
 def response_with_json(payload):
@@ -53,6 +54,29 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     ]
 
 
+def test_get_checkout_uses_price_when_price_usd_is_missing():
+    cart_response = response_with_json({
+        "user_id": "cart1",
+        "cart": [
+            {"price": 10.25},
+            {"price": 100, "price_usd": 4.75},
+        ],
+    })
+    shipping_response = response_with_json({
+        "shipping_estimate": 16.99,
+    })
+
+    with patch.object(
+        main.requests,
+        "get",
+        side_effect=[cart_response, shipping_response],
+    ):
+        response = main.app.test_client().get("/checkout/cart1")
+
+    assert response.status_code == 200
+    assert response.get_json()["total"] == 31.99
+
+
 def test_post_checkout_sends_shipping_address_before_getting_estimate():
     address = {
         "name": "ROSCOE",
@@ -71,6 +95,17 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
         "tracking_number": "699830377747",
     })
     shipping_response = response_with_json({"shipping_estimate": 5.5})
+    payment_response = response_with_json({
+        "amount": 25.5,
+        "card_last4": "1234",
+        "status": "Transaction approved",
+        "transaction_id": "transaction-1",
+    })
+    card_info = {
+        "card_number": "1234567890121234",
+        "expiration_date": "01/28",
+        "svn": "679",
+    }
 
     with (
         patch.object(
@@ -81,21 +116,29 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
         patch.object(
             main.requests,
             "post",
-            return_value=create_shipping_response,
+            side_effect=[create_shipping_response, payment_response],
         ) as mock_post,
     ):
         response = main.app.test_client().post(
             "/checkout/cart1",
-            json={"shipping_address": address},
+            json={"shipping_address": address, **card_info},
         )
 
     assert response.status_code == 200
     assert response.get_json()["total"] == 25.5
-    mock_post.assert_called_once_with(
-        f"{SHIPPING_URL}/shipping/cart1",
-        json=address,
-        timeout=5,
-    )
+    assert response.get_json()["payment"] == payment_response.json.return_value
+    assert mock_post.call_args_list == [
+        call(
+            f"{SHIPPING_URL}/shipping/cart1",
+            json=address,
+            timeout=5,
+        ),
+        call(
+            f"{PAYMENT_URL}/charges",
+            json={"amount": 25.5, **card_info},
+            timeout=5,
+        ),
+    ]
     assert mock_get.call_count == 2
 
 
@@ -116,6 +159,29 @@ def test_post_checkout_requires_shipping_address():
     }
 
 
+def test_post_checkout_requires_credit_card_fields():
+    with patch.object(
+        main.requests,
+        "get",
+        return_value=response_with_json({
+            "user_id": "cart1",
+            "cart": [],
+        }),
+    ):
+        response = main.app.test_client().post(
+            "/checkout/cart1",
+            json={"shipping_address": {"street": "123 Main St"}},
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": (
+            "card_number, expiration_date, and svn must be "
+            "non-empty strings"
+        ),
+    }
+
+
 def test_checkout_rejects_invalid_cart_price():
     cart_response = response_with_json({
         "user_id": "cart1",
@@ -127,7 +193,7 @@ def test_checkout_rejects_invalid_cart_price():
 
     assert response.status_code == 502
     assert response.get_json() == {
-        "error": "Cart service returned an invalid price_usd field",
+        "error": "Cart service returned an invalid price or price_usd field",
     }
 
 
