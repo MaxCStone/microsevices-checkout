@@ -11,6 +11,8 @@ steps:
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "build"
+      - "-f"
+      - "dockerfile"
       - "-t"
       - "us-central1-docker.pkg.dev/microservices-miniproject/checkout/my-flask-app:latest"
       - "."
