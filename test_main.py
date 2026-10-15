@@ -54,6 +54,75 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     ]
 
 
+def test_get_checkout_preserves_cart_service_item_format():
+    cart_items = [
+        {
+            "categories": ["electronics", "audio"],
+            "description": "Over-ear headphones",
+            "name": "Wired Headphones",
+            "price": 4999.99,
+            "product_id": "102",
+        },
+        {
+            "categories": ["electronics", "audio"],
+            "description": "Over-ear headphones",
+            "name": "Wired Headphones",
+            "price": 4999.99,
+            "product_id": "102",
+        },
+        {
+            "categories": ["electronics", "audio"],
+            "description": (
+                "Over-ear Bluetooth headphones with a charging case."
+            ),
+            "name": "Wireless Headphones",
+            "price": 49.99,
+            "product_id": "101",
+        },
+        {
+            "categories": ["electronics", "audio"],
+            "description": (
+                "Over-ear Bluetooth headphones with a charging case."
+            ),
+            "name": "Wireless Headphones",
+            "price": 49.99,
+            "product_id": "101",
+        },
+        {
+            "categories": ["electronics", "audio"],
+            "description": (
+                "Over-ear Bluetooth headphones with a charging case."
+            ),
+            "name": "Wireless Headphones",
+            "price": 49.99,
+            "product_id": "101",
+        },
+        {
+            "categories": ["electronics", "audio"],
+            "description": "Over-ear headphones",
+            "name": "Wired Headphones",
+            "price": 4999.99,
+            "product_id": "102",
+        },
+    ]
+    cart_response = response_with_json({
+        "cart": cart_items,
+        "user_id": "123",
+    })
+    shipping_response = response_with_json({"shipping_estimate": 10})
+
+    with patch.object(
+        main.requests,
+        "get",
+        side_effect=[cart_response, shipping_response],
+    ):
+        response = main.app.test_client().get("/checkout/123")
+
+    assert response.status_code == 200
+    assert response.get_json()["cart"] == cart_items
+    assert response.get_json()["total"] == 15159.94
+
+
 def test_get_checkout_uses_price_when_price_usd_is_missing():
     cart_response = response_with_json({
         "user_id": "cart1",
@@ -98,23 +167,20 @@ def test_get_checkout_uses_items_from_cart_service():
     assert response.get_json()["total"] == 15.75
 
 
-def test_get_checkout_normalizes_null_items_to_empty_list():
+def test_get_checkout_rejects_null_cart_items():
     cart_response = response_with_json({
         "user_id": "cart1",
         "items": None,
     })
-    shipping_response = response_with_json({"shipping_estimate": 5.5})
 
-    with patch.object(
-        main.requests,
-        "get",
-        side_effect=[cart_response, shipping_response],
-    ):
+    with patch.object(main.requests, "get", return_value=cart_response) as mock_get:
         response = main.app.test_client().get("/checkout/cart1")
 
-    assert response.status_code == 200
-    assert response.get_json()["items"] == []
-    assert response.get_json()["total"] == 5.5
+    assert response.status_code == 502
+    assert response.get_json() == {
+        "error": "Cart service returned an invalid cart",
+    }
+    mock_get.assert_called_once_with(f"{CART_URL}/cart/cart1", timeout=5)
 
 
 def test_post_checkout_sends_shipping_address_before_getting_estimate():
