@@ -39,7 +39,11 @@ def checkout(user_id):
         if not isinstance(cart_response, dict):
             return jsonify({"error": "Cart service returned an invalid cart"}), 502
 
-        cart = cart_response.get("cart") or []
+        cart = cart_response.get("cart")
+        if cart is None:
+            cart = cart_response.get("items")
+        if cart is None:
+            cart = []
         if not isinstance(cart, list):
             return jsonify({"error": "Cart service returned an invalid cart"}), 502
 
@@ -103,6 +107,8 @@ def checkout(user_id):
             "shipping_estimate": shipping_total,
             "total": round(cart_total + shipping_total, 2),
         }
+        if "items" in cart_response:
+            checkout_data["items"] = cart
 
         if request.method == "POST":
             payment_body = {

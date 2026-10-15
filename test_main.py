@@ -77,6 +77,46 @@ def test_get_checkout_uses_price_when_price_usd_is_missing():
     assert response.get_json()["total"] == 31.99
 
 
+def test_get_checkout_uses_items_from_cart_service():
+    cart_response = response_with_json({
+        "user_id": "cart1",
+        "items": [{"product_id": "p1", "price_usd": 10.25}],
+    })
+    shipping_response = response_with_json({"shipping_estimate": 5.5})
+
+    with patch.object(
+        main.requests,
+        "get",
+        side_effect=[cart_response, shipping_response],
+    ):
+        response = main.app.test_client().get("/checkout/cart1")
+
+    assert response.status_code == 200
+    assert response.get_json()["items"] == [
+        {"product_id": "p1", "price_usd": 10.25},
+    ]
+    assert response.get_json()["total"] == 15.75
+
+
+def test_get_checkout_normalizes_null_items_to_empty_list():
+    cart_response = response_with_json({
+        "user_id": "cart1",
+        "items": None,
+    })
+    shipping_response = response_with_json({"shipping_estimate": 5.5})
+
+    with patch.object(
+        main.requests,
+        "get",
+        side_effect=[cart_response, shipping_response],
+    ):
+        response = main.app.test_client().get("/checkout/cart1")
+
+    assert response.status_code == 200
+    assert response.get_json()["items"] == []
+    assert response.get_json()["total"] == 5.5
+
+
 def test_post_checkout_sends_shipping_address_before_getting_estimate():
     address = {
         "name": "ROSCOE",
