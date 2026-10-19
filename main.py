@@ -21,6 +21,11 @@ payment_service_url = os.environ.get(
     "https://payment-service-539115724269.us-central1.run.app",
 ).rstrip("/")
 
+
+def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
+    return {"correlation_id": correlation_id} if correlation_id else {}
+
+
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
     correlation_id = request.headers.get("correlation_id")
