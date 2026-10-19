@@ -2,3 +2,4 @@ pytest
 flask
 requests
 gunicorn>=23.0.0
+google-cloud-logging

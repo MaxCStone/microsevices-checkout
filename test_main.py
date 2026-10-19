@@ -36,7 +36,10 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
         "get",
         side_effect=[cart_response, shipping_response],
     ) as mock_get:
-        response = main.app.test_client().get("/checkout/cart1")
+        response = main.app.test_client().get(
+            "/checkout/cart1",
+            headers={"correlation_id": "correlation-123"},
+        )
 
     assert response.status_code == 200
     assert response.get_json() == {
@@ -49,8 +52,16 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
         "total": 31.99,
     }
     assert mock_get.call_args_list == [
-        call(f"{CART_URL}/cart/cart1", timeout=5),
-        call(f"{SHIPPING_URL}/shipping/cart1", timeout=5),
+        call(
+            f"{CART_URL}/cart/cart1",
+            headers={"correlation_id": "correlation-123"},
+            timeout=5,
+        ),
+        call(
+            f"{SHIPPING_URL}/shipping/cart1",
+            headers={"correlation_id": "correlation-123"},
+            timeout=5,
+        ),
     ]
 
 
@@ -180,7 +191,11 @@ def test_get_checkout_rejects_null_cart_items():
     assert response.get_json() == {
         "error": "Cart service returned an invalid cart",
     }
-    mock_get.assert_called_once_with(f"{CART_URL}/cart/cart1", timeout=5)
+    mock_get.assert_called_once_with(
+        f"{CART_URL}/cart/cart1",
+        headers={},
+        timeout=5,
+    )
 
 
 def test_post_checkout_sends_shipping_address_before_getting_estimate():
@@ -228,6 +243,7 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
         response = main.app.test_client().post(
             "/checkout/cart1",
             json={"shipping_address": address, **card_info},
+            headers={"correlation_id": "correlation-123"},
         )
 
     assert response.status_code == 200
@@ -237,15 +253,28 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
         call(
             f"{SHIPPING_URL}/shipping/cart1",
             json=address,
+            headers={"correlation_id": "correlation-123"},
             timeout=5,
         ),
         call(
             f"{PAYMENT_URL}/charges",
             json={"amount": 25.5, **card_info},
+            headers={"correlation_id": "correlation-123"},
             timeout=5,
         ),
     ]
-    assert mock_get.call_count == 2
+    assert mock_get.call_args_list == [
+        call(
+            f"{CART_URL}/cart/cart1",
+            headers={"correlation_id": "correlation-123"},
+            timeout=5,
+        ),
+        call(
+            f"{SHIPPING_URL}/shipping/cart1",
+            headers={"correlation_id": "correlation-123"},
+            timeout=5,
+        ),
+    ]
 
 
 def test_post_checkout_requires_shipping_address():
