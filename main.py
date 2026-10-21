@@ -48,7 +48,7 @@ def checkout(user_id):
         cart_response = requests.get(
             f"{cart_service_url}/cart/{user_id}",
             headers=_correlation_headers(correlation_id),
-            timeout=5,
+            timeout=20,
         )
         cart_response.raise_for_status()
         cart_response = cart_response.json()
@@ -106,14 +106,14 @@ def checkout(user_id):
                 f"{shipping_service_url}/shipping/{user_id}",
                 json=shipping_address,
                 headers=_correlation_headers(correlation_id),
-                timeout=5,
+                timeout=20,
             )
             shipping_response.raise_for_status()
 
         shipping_response = requests.get(
             f"{shipping_service_url}/shipping/{user_id}",
             headers=_correlation_headers(correlation_id),
-            timeout=5,
+            timeout=20,
         )
         shipping_response.raise_for_status()
         shipping_data = shipping_response.json()
@@ -153,7 +153,7 @@ def checkout(user_id):
                     f"{payment_service_url}/charges",
                     json=payment_body,
                     headers=_correlation_headers(correlation_id),
-                    timeout=5,
+                    timeout=20,
                 )
                 payment_response.raise_for_status()
                 payment_data = payment_response.json()
