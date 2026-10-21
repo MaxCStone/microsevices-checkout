@@ -10,7 +10,7 @@ logger = client.logger(log_name)
 client.setup_logging()
 cart_service_url = os.environ.get(
     "CART_SERVICE_URL",
-    "https://cart-service-539115724269.us-central1.run.app",
+    "http://34.121.75.149:8080",
 ).rstrip("/")
 shipping_service_url = os.environ.get(
     "SHIPPING_SERVICE_URL",

@@ -5,7 +5,7 @@ import requests
 import main
 
 
-CART_URL = "https://cart-service-539115724269.us-central1.run.app"
+CART_URL = "http://34.121.75.149:8080"
 SHIPPING_URL = "https://shipping-service-539115724269.us-central1.run.app"
 PAYMENT_URL = "https://payment-service-539115724269.us-central1.run.app"
 
