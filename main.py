@@ -33,9 +33,12 @@ def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
 
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
+    body = request.get_json(silent=True)
     correlation_id = (
-        request.headers.get("X-Correlation-ID")
-        or request.headers.get("correlation_id")
+        body.get("correlation_id")
+        if isinstance(body, dict)
+        and isinstance(body.get("correlation_id"), str)
+        else None
     )
     log_string = (
         f"user_id: {user_id} | Checkout | {request.method} "
@@ -90,7 +93,6 @@ def checkout(user_id):
             }), 502
 
         if request.method == "POST":
-            body = request.get_json(silent=True)
             shipping_address = body.get("shipping_address") if isinstance(body, dict) else None
             if not isinstance(shipping_address, dict):
                 log_string += " | ERROR: shipping_address must be an object"

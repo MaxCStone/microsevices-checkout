@@ -38,7 +38,8 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     ) as mock_get:
         response = main.app.test_client().get(
             "/checkout/cart1",
-            headers={"correlation_id": "correlation-123"},
+            json={"correlation_id": "body-correlation-123"},
+            headers={"X-Correlation-ID": "header-correlation-456"},
         )
 
     assert response.status_code == 200
@@ -55,16 +56,16 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
         call(
             f"{CART_URL}/cart/cart1",
             headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
+                "X-Correlation-ID": "body-correlation-123",
+                "correlation_id": "body-correlation-123",
             },
             timeout=20,
         ),
         call(
             f"{SHIPPING_URL}/shipping/cart1",
             headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
+                "X-Correlation-ID": "body-correlation-123",
+                "correlation_id": "body-correlation-123",
             },
             timeout=20,
         ),
@@ -249,8 +250,11 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
     ):
         response = main.app.test_client().post(
             "/checkout/cart1",
-            json={"shipping_address": address, **card_info},
-            headers={"X-Correlation-ID": "correlation-123"},
+            json={
+                "shipping_address": address,
+                "correlation_id": "correlation-123",
+                **card_info,
+            },
         )
 
     assert response.status_code == 200
