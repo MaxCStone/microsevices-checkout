@@ -38,8 +38,7 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     ) as mock_get:
         response = main.app.test_client().get(
             "/checkout/cart1",
-            json={"correlation_id": "body-correlation-123"},
-            headers={"X-Correlation-ID": "header-correlation-456"},
+            headers={"correlation-id": "correlation-123"},
         )
 
     assert response.status_code == 200
@@ -55,18 +54,12 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     assert mock_get.call_args_list == [
         call(
             f"{CART_URL}/cart/cart1",
-            headers={
-                "X-Correlation-ID": "body-correlation-123",
-                "correlation_id": "body-correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
         call(
             f"{SHIPPING_URL}/shipping/cart1",
-            headers={
-                "X-Correlation-ID": "body-correlation-123",
-                "correlation_id": "body-correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
     ]
@@ -252,9 +245,9 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
             "/checkout/cart1",
             json={
                 "shipping_address": address,
-                "correlation_id": "correlation-123",
                 **card_info,
             },
+            headers={"correlation-id": "correlation-123"},
         )
 
     assert response.status_code == 200
@@ -266,37 +259,25 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
         call(
             f"{SHIPPING_URL}/shipping/cart1",
             json=address,
-            headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
         call(
             f"{PAYMENT_URL}/charges",
             json={"amount": 25.5, **card_info},
-            headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
     ]
     assert mock_get.call_args_list == [
         call(
             f"{CART_URL}/cart/cart1",
-            headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
         call(
             f"{SHIPPING_URL}/shipping/cart1",
-            headers={
-                "X-Correlation-ID": "correlation-123",
-                "correlation_id": "correlation-123",
-            },
+            headers={"correlation-id": "correlation-123"},
             timeout=20,
         ),
     ]

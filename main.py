@@ -25,21 +25,13 @@ payment_service_url = os.environ.get(
 def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
     if not correlation_id:
         return {}
-    return {
-        "X-Correlation-ID": correlation_id,
-        "correlation_id": correlation_id,
-    }
+    return {"correlation-id": correlation_id}
 
 
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
     body = request.get_json(silent=True)
-    correlation_id = (
-        body.get("correlation_id")
-        if isinstance(body, dict)
-        and isinstance(body.get("correlation_id"), str)
-        else None
-    )
+    correlation_id = request.headers.get("correlation-id")
     log_string = (
         f"user_id: {user_id} | Checkout | {request.method} "
         f"| Correlation ID: {correlation_id or 'N/A'}"
