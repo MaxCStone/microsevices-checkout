@@ -54,13 +54,19 @@ def test_get_checkout_returns_cart_total_and_shipping_cost():
     assert mock_get.call_args_list == [
         call(
             f"{CART_URL}/cart/cart1",
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
         call(
             f"{SHIPPING_URL}/shipping/cart1",
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
     ]
 
@@ -194,7 +200,7 @@ def test_get_checkout_rejects_null_cart_items():
     mock_get.assert_called_once_with(
         f"{CART_URL}/cart/cart1",
         headers={},
-        timeout=5,
+        timeout=20,
     )
 
 
@@ -239,40 +245,55 @@ def test_post_checkout_sends_shipping_address_before_getting_estimate():
             "post",
             side_effect=[create_shipping_response, payment_response],
         ) as mock_post,
+        patch.object(main.logger, "log_text") as mock_log_text,
     ):
         response = main.app.test_client().post(
             "/checkout/cart1",
             json={"shipping_address": address, **card_info},
-            headers={"correlation_id": "correlation-123"},
+            headers={"X-Correlation-ID": "correlation-123"},
         )
 
     assert response.status_code == 200
     assert response.get_json()["total"] == 25.5
     assert response.get_json()["payment"] == payment_response.json.return_value
+    mock_log_text.assert_called_once()
+    assert "Correlation ID: correlation-123" in mock_log_text.call_args.args[0]
     assert mock_post.call_args_list == [
         call(
             f"{SHIPPING_URL}/shipping/cart1",
             json=address,
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
         call(
             f"{PAYMENT_URL}/charges",
             json={"amount": 25.5, **card_info},
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
     ]
     assert mock_get.call_args_list == [
         call(
             f"{CART_URL}/cart/cart1",
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
         call(
             f"{SHIPPING_URL}/shipping/cart1",
-            headers={"correlation_id": "correlation-123"},
-            timeout=5,
+            headers={
+                "X-Correlation-ID": "correlation-123",
+                "correlation_id": "correlation-123",
+            },
+            timeout=20,
         ),
     ]
 

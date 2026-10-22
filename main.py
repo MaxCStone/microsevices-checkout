@@ -23,13 +23,24 @@ payment_service_url = os.environ.get(
 
 
 def _correlation_headers(correlation_id: str | None) -> dict[str, str]:
-    return {"correlation_id": correlation_id} if correlation_id else {}
+    if not correlation_id:
+        return {}
+    return {
+        "X-Correlation-ID": correlation_id,
+        "correlation_id": correlation_id,
+    }
 
 
 @app.route("/checkout/<user_id>", methods=["GET", "POST"])
 def checkout(user_id):
-    correlation_id = request.headers.get("correlation_id")
-    log_string = f"user_id: {user_id} | Checkout | {request.method} | Correlation ID: {request.headers.get('correlation_id', 'N/A')}"
+    correlation_id = (
+        request.headers.get("X-Correlation-ID")
+        or request.headers.get("correlation_id")
+    )
+    log_string = (
+        f"user_id: {user_id} | Checkout | {request.method} "
+        f"| Correlation ID: {correlation_id or 'N/A'}"
+    )
     if not cart_service_url or not shipping_service_url:
         log_string += " | ERROR: CART_SERVICE_URL and SHIPPING_SERVICE_URL must be configured"
         logger.log_text(log_string)
